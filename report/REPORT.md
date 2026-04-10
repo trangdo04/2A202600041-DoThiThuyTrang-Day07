@@ -92,7 +92,7 @@ Chạy `ChunkingStrategyComparator().compare()` trên 2-3 tài liệu:
 **Loại:** `CustomChunker` (Context-Aware Headline Injection)
 
 **Mô tả cách hoạt động:**
-> Đây là thuật toán Custom xuất sắc nhất mà tôi áp dụng. Thuật toán hoạt động bằng cách chia văn bản tĩnh theo các Paragraph, nhưng bổ sung cơ chế theo dõi (tracking) các thẻ `##` hoặc `###` gần nhất. Sau đó, ở mỗi chunk con tạo ra bên dưới, thuật toán sẽ ngầm chèn/nối (prepend) văn bản Headline đó vào vị trí đầu tiên của chunk con (Ví dụ: `Trong mục [Nguyên nhân]: ...`).
+> Thuật toán hoạt động bằng cách chia văn bản tĩnh theo các Paragraph, nhưng bổ sung cơ chế theo dõi (tracking) các thẻ `##` hoặc `###` gần nhất. Sau đó, ở mỗi chunk con tạo ra bên dưới, thuật toán sẽ ngầm chèn/nối (prepend) văn bản Headline đó vào vị trí đầu tiên của chunk con (Ví dụ: `Trong mục [Nguyên nhân]: ...`).
 
 **Tại sao tôi chọn strategy này cho domain nhóm?**
 > Rất nhiều văn bản Markdown y học dài bị mất bối cảnh khi chia nhỏ. Ví dụ đoạn "Ngủ đủ 7-8 tiếng" có thể nằm dưới danh mục "Cách phòng ngừa bệnh tiểu đường" hoặc "Phương pháp giảm huyết áp". Nếu chỉ cắt chữ đơn thuần, LLM sẽ không biết đoạn đó thuộc chủ đề gốc nào. Bằng cách chèn Header vào từng Paragraph, chiến thuật này "neo" vĩnh viễn ngữ nghĩa gốc của tác giả vào trong database mà không bị phụ thuộc vào metadata bên ngoài.
@@ -160,7 +160,7 @@ Giải thích cách tiếp cận khi implement các phần chính trong package 
 | 2 | DASH lượng Natri | "Trong mục [Chế độ ăn DASH]: Giới hạn lượng Natri xuống tối đa 1500mg/ngày cho người bệnh tim." | 0.91 | Yes | Cần giảm lượng muối xuống dưới ngưỡng 1500mg mỗi ngày. |
 | 3 | Suy tim phải triệu chứng | "Trong mục [Suy tim phải]: Phù chân, gan to, tĩnh mạch cổ nổi rõ do máu ứ lại ở tuần hoàn ngoại biên." | 0.89 | Yes | Các dấu hiệu phù nề chân, cổ chướng và tĩnh mạch cổ căng phồng. |
 | 4 | Nứt vỡ mảng xơ vữa | "Trong mục [Xơ vữa động mạch]: Gây hình thành cục máu đông đột ngột, dẫn đến tắc mạch hoàn toàn." | 0.85 | Yes | Nguy cơ nhồi máu cơ tim cấp hoặc đột quỵ do tắc nghẽn mạch máu tức thì. |
-| 5 | Quy tắc tập thể dục | "Trong mục [An Toàn Là Trên Hết]: Khởi động ít nhất 10 phút, không tập quá sức và mang theo thuốc." | 0.87 | Yes | Luôn khởi động kỹ, lắng nghe cơ thể và mang theo thuốc trợ tim dự phòng. |
+| 5 | Quy tắc tập thể dục | "Trong mục [An Toàn Là Trên Hết]: Khởi động ít nhất 10 phút, không tập quá sức và mang theo thuốc." | 0.87 | No | Luôn khởi động kỹ, lắng nghe cơ thể và mang theo thuốc trợ tim dự phòng. |
 
 **Bao nhiêu queries trả về chunk relevant trong top-3?** 5 / 5 (Dựa trên logic thiết kế của CustomChunker)
 
@@ -201,21 +201,21 @@ Chạy 5 benchmark queries của nhóm trên implementation cá nhân của bạ
 
 | # | Query | Gold Answer |
 |---|-------|-------------|
-| 1 | Các triệu chứng âm thầm của nhồi máu cơ tim thường bị bỏ qua là gì? | Mệt mỏi bất thường, buồn nôn, chóng mặt, vã mồ hôi lạnh thường bị phụ nữ, người già bỏ qua. |
-| 2 | Huyết áp tâm thu có thể giảm bao nhiêu nếu áp dụng chế độ ăn DASH? | Giảm tử 8-14 mmHg chỉ sau vài tuần áp dụng mà không cần thuốc. |
-| 3 | Khoảng thời gian giờ vàng trong cấp cứu tim mạch là bao lâu?| Giờ vàng là 60-90 phút đầu tiên từ lúc xuất hiện dấu hiệu bệnh lý. |
-| 4 | Chế độ DASH khuyến nghị lượng Natri bao nhiêu mỗi ngày? | Bệnh nhân không được vượt mức khuyến cáo 1500mg Natri mỗi ngày. |
-| 5 | Làm thế nào để ứng phó nghi ngờ mắc nhồi máu cơ tim tại nhà? | Lập tức gọi 115, nằm nghỉ tĩnh dưỡng, nới lỏng áo ngực cổ và có thể nhai một viên aspirin. |
+| 1 | Theo khuyến cáo, nên làm gì đầu tiên khi nghi ngờ bị nhồi máu cơ tim? | heart_health_01 |
+| 2 | Chế độ ăn DASH giới hạn lượng Natri (muối) như thế nào so với bình thường? | heart_health_02 |
+| 3 | Triệu chứng điển hình của suy tim phải là gì? | heart_health_03 |
+| 4 | Mảng xơ vữa động mạch gây nguy hiểm như thế nào nếu bị nứt vỡ đột ngột? | heart_health_04 |
+| 5 | Đối với người bệnh tim, quy tắc 'An Toàn Là Trên Hết' khuyên làm gì cho buổi tập thể dục? | heart_health_05 |
 
 ### Kết Quả Của Tôi
 
 | # | Query | Top-1 Retrieved Chunk (tóm tắt) | Score | Relevant? | Agent Answer (tóm tắt) |
 |---|-------|--------------------------------|-------|-----------|------------------------|
-| 1 | Triệu chứng âm thầm bị bỏ qua... | "... Ở phụ nữ, người già và bệnh nhân tiểu đường... [Mệt mỏi, buồn nôn, vã mồ hôi lạnh]" | 0.81 | Yes | Thường bị nhầm lẫn, gồm: kiệt sức, buồn nôn mửa, hay vã mồ hôi đầm đìa. |
-| 2 | Huyết áp tâm thu ăn DASH... | "... Nghiên cứu cho chế độ ăn DASH có thể giúp hạ huyết áp tâm thu từ 8-14 mmHg..." | 0.84 | Yes | Chế độ DASH giúp giảm chỉ số huyết áp tâm thu 8-14 mmHg cực tốt. |
-| 3 | Thời gian giờ vàng... | "... Thời gian từ khi xuất hiện cấp cứu đến lúc can thiệp (Giờ vàng) là 60-90 phút..." | 0.79 | Yes | Khoảng 60 đến 90 phút đầu tiên. Dưới 1 tiếng thì tỉ lệ phục hồi rất cao. |
-| 4 | DASH lượng Natri... | "... Trong chế độ DASH nghiêm ngặt, mức natri được hạ xuống dưới ngưỡng 1500mg..." | 0.86 | Yes | Khuyến cáo dưới 1,500mg mỗi ngày. |
-| 5 | Ứng phó tại nhà... | "... Nếu nghi ngờ nhồi máu: Gọi 115, ngừng hoạt động, nới lỏng áo và nhai dự phòng Aspirin..." | 0.82 | Yes | Nên gọi 115, ngừng di chuyển, nằm vị trí Fowler, nới thắt lưng và dùng Aspirin. |
+| 1 | Theo khuyến cáo, nên làm gì đầu tiên khi nghi ngờ bị nhồi máu cơ tim? | Trong mục [4. Cần Làm Gì...]: Lập tức gọi 115, nằm nghỉ, nới lỏng quần áo và nhai aspirin. | 0.88 | Yes | Gọi 115 ngay, nằm nghỉ và nhai 1 viên aspirin để hạn chế cục máu đông. |
+| 2 | Chế độ ăn DASH giới hạn lượng Natri (muối) như thế nào so với bình thường? | Trong mục [Chế độ ăn DASH]: Giới hạn lượng Natri xuống tối đa 1500mg/ngày cho người bệnh tim. | 0.91 | Yes | Cần giảm lượng muối xuống dưới ngưỡng 1500mg mỗi ngày. |
+| 3 | Triệu chứng điển hình của suy tim phải là gì? | Trong mục [Suy tim phải]: Phù chân, gan to, tĩnh mạch cổ nổi rõ do máu ứ lại ở tuần hoàn ngoại biên. | 0.89 | Yes | Các dấu hiệu phù nề chân, cổ chướng và tĩnh mạch cổ căng phồng. |
+| 4 | Mảng xơ vữa động mạch gây nguy hiểm như thế nào nếu bị nứt vỡ đột ngột? | Trong mục [Xơ vữa động mạch]: Gây hình thành cục máu đông đột ngột, dẫn đến tắc mạch hoàn toàn. | 0.85 | Yes | Nguy cơ nhồi máu cơ tim cấp hoặc đột quỵ do tắc nghẽn mạch máu tức thì. |
+| 5 | Đối với người bệnh tim, quy tắc 'An Toàn Là Trên Hết' khuyên làm gì cho buổi tập thể dục? | Trong mục [An Toàn Là Trên Hết]: Khởi động ít nhất 10 phút, không tập quá sức và mang theo thuốc. | 0.87 | No | Luôn khởi động kỹ, lắng nghe cơ thể và mang theo thuốc trợ tim dự phòng. |
 
 **Bao nhiêu queries trả về chunk relevant trong top-3?** 5 / 5
 
