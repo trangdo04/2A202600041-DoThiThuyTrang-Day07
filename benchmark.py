@@ -226,7 +226,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--embedder",
         choices=["mock", "local", "openai"],
-        default=os.getenv(EMBEDDING_PROVIDER_ENV, "mock"),
+        default=os.getenv(EMBEDDING_PROVIDER_ENV, "local"),
         help="Embedding backend to use.",
     )
     parser.add_argument(

@@ -19,3 +19,4 @@ __pycache__/
 src_w_solution/
 new_env/
 venv/
+check_embedding.py
