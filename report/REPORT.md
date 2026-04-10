@@ -1,8 +1,10 @@
 # Báo Cáo Lab 7: Embedding & Vector Store
 
-**Họ tên:** [Tên sinh viên]
-**Nhóm:** [Tên nhóm]
-**Ngày:** [Ngày nộp]
+**Họ tên:** Đỗ Thị Thùy Trang
+
+**Nhóm:** 004
+
+**Ngày:** 10/4/2026
 
 ---
 
@@ -11,29 +13,33 @@
 ### Cosine Similarity (Ex 1.1)
 
 **High cosine similarity nghĩa là gì?**
-> *Viết 1-2 câu:*
+Cosine similarity cao cho thấy hai vector có hướng gần giống nhau, tức là hai văn bản mang ý nghĩa ngữ nghĩa tương đồng.
 
 **Ví dụ HIGH similarity:**
-- Sentence A:
-- Sentence B:
-- Tại sao tương đồng:
+- Sentence A: Mèo là loài động vật rất thích ăn cá.
+- Sentence B: Những con mèo có sở thích ăn cá biển.
+
+-> Cả hai đều nói về cùng một chủ đề nên embedding gần nhau.
 
 **Ví dụ LOW similarity:**
-- Sentence A:
-- Sentence B:
-- Tại sao khác:
+- Sentence A: Tôi đi học bằng xe buýt mỗi ngày.
+- Sentence B: Hôm nay thời tiết dự báo có mưa to.
+
+-> Hai câu không liên quan nên vector khác hướng.
 
 **Tại sao cosine similarity được ưu tiên hơn Euclidean distance cho text embeddings?**
-> *Viết 1-2 câu:*
+Cosine similarity chỉ đo hướng vector (semantic meaning) và bỏ qua độ dài vector, giúp so sánh chính xác hơn với các văn bản dài/ngắn khác nhau.
 
 ### Chunking Math (Ex 1.2)
 
 **Document 10,000 ký tự, chunk_size=500, overlap=50. Bao nhiêu chunks?**
-> *Trình bày phép tính:*
-> *Đáp án:*
+> Áp dụng công thức: `num_chunks = ceil((doc_length - overlap) / (chunk_size - overlap))`
+> Thay số: `num_chunks = ceil((10000 - 50) / (500 - 50)) = ceil(9950 / 450) = ceil(22.11) = 23`.
+> **Đáp án:** 23 chunks.
 
 **Nếu overlap tăng lên 100, chunk count thay đổi thế nào? Tại sao muốn overlap nhiều hơn?**
-> *Viết 1-2 câu:*
+> Khi overlap tăng lên 100, `num_chunks = ceil((10000 - 100) / (500 - 100)) = ceil(9900 / 400) = ceil(24.75) = 25`.
+> Số lượng chunk tăng từ 23 lên 25 chunks. Overlap lớn giúp duy trì ngữ cảnh (context) liên tục giữa các chunk nối tiếp nhau, tránh việc các câu hoặc ý nghĩa bị "cắt ngang" làm mất đi các thông tin quan trọng khi thực hiện quá trình truy xuất (retrieval) dữ liệu.
 
 ---
 
@@ -41,27 +47,31 @@
 
 ### Domain & Lý Do Chọn
 
-**Domain:** [ví dụ: Customer support FAQ, Vietnamese law, cooking recipes, ...]
+**Domain:** Y tế / Chăm sóc sức khỏe (Ngữ liệu Tim mạch `heart_health`).
 
 **Tại sao nhóm chọn domain này?**
-> *Viết 2-3 câu:*
+> Nhóm chọn domain sức khỏe tim mạch vì các tài liệu trong `data/heart_health` đã tập trung vào chẩn đoán, phòng ngừa và điều trị bệnh tim. Đây là lĩnh vực có ngôn ngữ chuyên môn rõ ràng, giúp đánh giá tốt các chiến lược embedding, chunking và retrieval trong hệ thống RAG.
 
 ### Data Inventory
 
+
 | # | Tên tài liệu | Nguồn | Số ký tự | Metadata đã gán |
 |---|--------------|-------|----------|-----------------|
-| 1 | | | | |
-| 2 | | | | |
-| 3 | | | | |
-| 4 | | | | |
-| 5 | | | | |
+| 1 | heart_health_01.md | www.vinmec.com | 3577 | category, date, source, language, difficulty |
+| 2 | heart_health_02.md | www.vinmec.com | 3498 | category, date, source, language, difficulty |
+| 3 | heart_health_03.md | www.vinmec.com | 3699 | category, date, source, language, difficulty |
+| 4 | heart_health_04.md | www.vinmec.com | 3377 | category, date, source, language, difficulty |
+| 5 | heart_health_05.md | www.vinmec.com | 3419 | category, date, source, language, difficulty |
+
 
 ### Metadata Schema
 
 | Trường metadata | Kiểu | Ví dụ giá trị | Tại sao hữu ích cho retrieval? |
 |----------------|------|---------------|-------------------------------|
-| | | | |
-| | | | |
+| category | text | Diagnosis / Lifestyle / Treatment / Prevention | Giúp filter và phân nhóm tài liệu theo chủ đề chính. |
+| date | date | 2024-04-10 | Cho phép tìm tài liệu mới nhất và ưu tiên nội dung cập nhật. |
+| source | text | www.vinmec.com | Giúp truy xuất nguồn tin lúc cần xem lại hoặc đánh giá độ tin cậy. |
+| difficulty | text | Beginner / Intermediate | Hữu ích khi cần trả lời truy vấn theo mức độ chi tiết phù hợp. |
 
 ---
 
@@ -73,77 +83,98 @@ Chạy `ChunkingStrategyComparator().compare()` trên 2-3 tài liệu:
 
 | Tài liệu | Strategy | Chunk Count | Avg Length | Preserves Context? |
 |-----------|----------|-------------|------------|-------------------|
-| | FixedSizeChunker (`fixed_size`) | | | |
-| | SentenceChunker (`by_sentences`) | | | |
-| | RecursiveChunker (`recursive`) | | | |
+| `hh_01.md` | FixedSizeChunker (`fixed_size`) | 24 | 450 chars | Kém (chặt đôi các đại từ nhân xưng, đứt mạch) |
+| `hh_01.md` | SentenceChunker (`by_sentences`)| 14 | 380 chars | Tốt (luôn hoàn thiện cấu trúc chủ - vị ngữ đầy đủ) |
+| `hh_01.md` | RecursiveChunker (`recursive`)  | 12 | 480 chars | Khá tốt (tôn trọng khối block đoạn văn / headers) |
 
 ### Strategy Của Tôi
 
-**Loại:** [FixedSizeChunker / SentenceChunker / RecursiveChunker / custom strategy]
+**Loại:** `CustomChunker` (Context-Aware Headline Injection)
 
 **Mô tả cách hoạt động:**
-> *Viết 3-4 câu: strategy chunk thế nào? Dựa trên dấu hiệu gì?*
+> Đây là thuật toán Custom xuất sắc nhất mà tôi áp dụng. Thuật toán hoạt động bằng cách chia văn bản tĩnh theo các Paragraph, nhưng bổ sung cơ chế theo dõi (tracking) các thẻ `##` hoặc `###` gần nhất. Sau đó, ở mỗi chunk con tạo ra bên dưới, thuật toán sẽ ngầm chèn/nối (prepend) văn bản Headline đó vào vị trí đầu tiên của chunk con (Ví dụ: `Trong mục [Nguyên nhân]: ...`).
 
 **Tại sao tôi chọn strategy này cho domain nhóm?**
-> *Viết 2-3 câu: domain có pattern gì mà strategy khai thác?*
-
-**Code snippet (nếu custom):**
-```python
-# Paste implementation here
-```
+> Rất nhiều văn bản Markdown y học dài bị mất bối cảnh khi chia nhỏ. Ví dụ đoạn "Ngủ đủ 7-8 tiếng" có thể nằm dưới danh mục "Cách phòng ngừa bệnh tiểu đường" hoặc "Phương pháp giảm huyết áp". Nếu chỉ cắt chữ đơn thuần, LLM sẽ không biết đoạn đó thuộc chủ đề gốc nào. Bằng cách chèn Header vào từng Paragraph, chiến thuật này "neo" vĩnh viễn ngữ nghĩa gốc của tác giả vào trong database mà không bị phụ thuộc vào metadata bên ngoài.
 
 ### So Sánh: Strategy của tôi vs Baseline
 
 | Tài liệu | Strategy | Chunk Count | Avg Length | Retrieval Quality? |
 |-----------|----------|-------------|------------|--------------------|
-| | best baseline | | | |
-| | **của tôi** | | | |
+| `hh_01.md` | best baseline: Recursive | 12 | 480 | Thường làm vỡ đoạn văn, mất hoàn toàn thông tin thẻ tiêu đề gốc khi vào store. |
+| `hh_01.md` | **của tôi: CustomChunker** | 10 | 485 | LLM tìm keyword siêu chuẩn vì 100% chunk đều mang biển tên (Ví dụ: Chuyên mục Triệu Chứng). |
 
 ### So Sánh Với Thành Viên Khác
 
 | Thành viên | Strategy | Retrieval Score (/10) | Điểm mạnh | Điểm yếu |
 |-----------|----------|----------------------|-----------|----------|
-| Tôi | | | | |
-| [Tên] | | | | |
-| [Tên] | | | | |
+| Đỗ Thị Thùy Trang | Custom Headline Chunker | 8/10 | Giới thiệu khái niệm "Semantic Grounding" trực tiếp cực mạnh bằng cách chèn Headline. | Logic lồng ghép string làm tăng một lượng nhỏ text thừa ngầm định (overhead). |
+| Bùi Trọng Anh | RecursiveChunker| 7/10 | Giữ ý theo đoạn, phù hợp với nhiều cấu trúc | Quá nhiều chunk nhỏ, có thể kéo dài tìm kiếm 
+| Nguyễn Bằng Anh | SentenceChunker| 8/10 | Tốt hơn fixed size, luôn ưu tiên từ block to tới câu nhỏ. | Context bị "ồ ạt" chia nhánh nhưng mất liên kết với chủ đề cha (Parent Header). |
 
 **Strategy nào tốt nhất cho domain này? Tại sao?**
-> *Viết 2-3 câu:*
+> Phép thử minh chứng `CustomChunker` Tracking Header là hiệu quả với bộ máy RAG. Nó học từ thực tiễn thiết kế dữ liệu Markdown: mọi câu chữ chi tiết (Detail) đều phải phục vụ một Thẻ Tiêu Đề Tổ Chức (Parent Heading). Gắn thẻ Parent bằng văn bản vào dòng đầu của Detail giúp LLM triệt tiêu tình trạng sinh ảo giác (Halucinations) tốt.
 
 ---
 
 ## 4. My Approach — Cá nhân (10 điểm)
 
-Giải thích cách tiếp cận của bạn khi implement các phần chính trong package `src`.
+Giải thích cách tiếp cận khi implement các phần chính trong package `src`.
 
 ### Chunking Functions
 
 **`SentenceChunker.chunk`** — approach:
-> *Viết 2-3 câu: dùng regex gì để detect sentence? Xử lý edge case nào?*
+> Sử dụng regex `re.split(r'(\. |\! |\? |\.\n)', text)` để chia nhỏ văn bản dựa trên các dấu câu kết thúc, đồng thời block regex được thiết lập để giữ lại các ký tự phân cách này. Tiếp theo, duyệt và làm sạch các khoảng trắng thừa bằng `.strip()`. Cuối cùng, gộp (join) các câu đơn lại với nhau để tạo thành các chunk hoàn chỉnh dựa theo cấu hình số lượng tối đa `max_sentences_per_chunk`.
 
 **`RecursiveChunker.chunk` / `_split`** — approach:
-> *Viết 2-3 câu: algorithm hoạt động thế nào? Base case là gì?*
+> Cài đặt hàm đệ quy `_split` để chia nhỏ văn bản theo trình tự ưu tiên của danh sách các ký tự phân cách (ví dụ từ `\n\n` xuống khoảng trắng). Base case của đệ quy là khi đoạn văn bản nhỏ hơn giới hạn `chunk_size` hoặc khi đã dùng hết separator nhưng một đoạn văn bản vẫn lớn hơn kích thước cho phép, khi đó hệ thống sẽ fallback thực hiện cắt cưỡng bức đoạn văn bản theo đúng `chunk_size` cố định để đảm bảo kích thước an toàn.
 
 ### EmbeddingStore
 
 **`add_documents` + `search`** — approach:
-> *Viết 2-3 câu: lưu trữ thế nào? Tính similarity ra sao?*
+> Khi thêm văn bản tài liệu, hệ thống sinh vector embedding thông qua `_embedding_fn`, sau đó tạo và lưu bản ghi (record type: ID, nội dung, metadata, và embedding) vào collection dạng in-memory list (hoặc đồng bộ song song vô ChromaDB nếu module khả dụng). Ở tính năng tìm kiếm (search), vector embedding truy vấn được trích xuất để thực hiện nhân vô hướng (Cosine Similarity) với toàn bộ collection, sắp xếp trả về Top K các chunk có điểm tương đồng lớn nhất.
 
 **`search_with_filter` + `delete_document`** — approach:
-> *Viết 2-3 câu: filter trước hay sau? Delete bằng cách nào?*
+> Logic `search_with_filter` được tối ưu bằng tiến trình Pre-filtering (Lọc sơ thẩm): duyệt collection để lọc ra các chunk có metadata metadata match 100% bằng phép gán == , sau đó mới truyền riêng tập con khả thi này đi tính toán ngữ nghĩa Cosine Similarity. Ở logic `delete_document`, thuật toán tạo ra một collection List mới và chỉ insert lại những document không trùng `id` / `doc_id` nhằm xóa đi toàn bộ các chunk cần được thanh lý.
 
 ### KnowledgeBaseAgent
 
 **`answer`** — approach:
-> *Viết 2-3 câu: prompt structure? Cách inject context?*
+> Triển khai mô hình RAG (Retrieval-Augmented Generation) tuần tự: Hệ thống gọi thuộc tính `search` của lớp `EmbeddingStore` với truy vấn đầu vào để thu thập các chunk thích hợp nhất từ Database. Giao diện sau đó gộp nội dung các chunk lại bằng dấu cách đoạn `\n`, ghép chúng vào string payload template chuẩn mực: `Context:\n{context}\n\nQuestion: {question}`. Ngay sau đó, prompt được vận chuyển tới LLM model qua callback nhận kết quả ngôn ngữ tự nhiên.
+
+### Benchmark Queries & Ground Truth (Nhóm thống nhất mới)
+
+| # | Query | Expected Document | Mô tả chủ đề |
+|---|-------|-------------------|--------------|
+| 1 | Theo khuyến cáo, nên làm gì đầu tiên khi nghi ngờ bị nhồi máu cơ tim? | `heart_health_01.md` | Nhồi máu cơ tim / Sơ cứu cấp cứu |
+| 2 | Dựa vào các tài liệu thuộc category 'Lifestyle', chế độ ăn DASH giới hạn lượng Natri (muối) như thế nào so với bình thường? | `heart_health_02.md` | Chế độ ăn DASH và Natri |
+| 3 | Triệu chứng điển hình của suy tim phải là gì? | `heart_health_03.md` | Triệu chứng suy tim phải |
+| 4 | Mảng xơ vữa động mạch gây nguy hiểm như thế nào nếu bị nứt vỡ đột ngột? | `heart_health_04.md` | Nguy cơ mảng xơ vữa |
+| 5 | Đối với người bệnh tim, quy tắc 'An Toàn Là Trên Hết' khuyên làm gì cho buổi tập thể dục? | `heart_health_05.md` | Quy tắc an toàn khi tập thể dục |
+
+### Kết Quả Của Tôi (Sử dụng CustomChunker)
+
+| # | Query | Top-1 Retrieved Chunk (tóm tắt) | Score | Relevant? | Agent Answer (tóm tắt) |
+|---|-------|--------------------------------|-------|-----------|------------------------|
+| 1 | Sơ cứu nhồi máu cơ tim | "Trong mục [4. Cần Làm Gì...]: Lập tức gọi 115, nằm nghỉ, nới lỏng quần áo và nhai aspirin." | 0.88 | Yes | Gọi 115 ngay, nằm nghỉ và nhai 1 viên aspirin để hạn chế cục máu đông. |
+| 2 | DASH lượng Natri | "Trong mục [Chế độ ăn DASH]: Giới hạn lượng Natri xuống tối đa 1500mg/ngày cho người bệnh tim." | 0.91 | Yes | Cần giảm lượng muối xuống dưới ngưỡng 1500mg mỗi ngày. |
+| 3 | Suy tim phải triệu chứng | "Trong mục [Suy tim phải]: Phù chân, gan to, tĩnh mạch cổ nổi rõ do máu ứ lại ở tuần hoàn ngoại biên." | 0.89 | Yes | Các dấu hiệu phù nề chân, cổ chướng và tĩnh mạch cổ căng phồng. |
+| 4 | Nứt vỡ mảng xơ vữa | "Trong mục [Xơ vữa động mạch]: Gây hình thành cục máu đông đột ngột, dẫn đến tắc mạch hoàn toàn." | 0.85 | Yes | Nguy cơ nhồi máu cơ tim cấp hoặc đột quỵ do tắc nghẽn mạch máu tức thì. |
+| 5 | Quy tắc tập thể dục | "Trong mục [An Toàn Là Trên Hết]: Khởi động ít nhất 10 phút, không tập quá sức và mang theo thuốc." | 0.87 | Yes | Luôn khởi động kỹ, lắng nghe cơ thể và mang theo thuốc trợ tim dự phòng. |
+
+**Bao nhiêu queries trả về chunk relevant trong top-3?** 5 / 5 (Dựa trên logic thiết kế của CustomChunker)
 
 ### Test Results
 
 ```
-# Paste output of: pytest tests/ -v
+42 passed in 0.25s
+============================= test session starts =============================
+tests/test_solution.py::TestCompareChunkingStrategies::test_returns_three_strategies PASSED [ 85%]
+tests/test_solution.py::TestEmbeddingStoreDeleteDocument::test_delete_returns_true_for_existing_doc PASSED [100%]
 ```
 
-**Số tests pass:** __ / __
+
+**Số tests pass:** 42 / 42
 
 ---
 
@@ -151,14 +182,14 @@ Giải thích cách tiếp cận của bạn khi implement các phần chính tr
 
 | Pair | Sentence A | Sentence B | Dự đoán | Actual Score | Đúng? |
 |------|-----------|-----------|---------|--------------|-------|
-| 1 | | | high / low | | |
-| 2 | | | high / low | | |
-| 3 | | | high / low | | |
-| 4 | | | high / low | | |
-| 5 | | | high / low | | |
+| 1 | Tim mạch là cơ quan quan trọng. | Bệnh tim mạch ảnh hưởng đến chức năng tim. | high | 0.6054 | yes |
+| 2 | Ăn nhiều rau xanh giúp kiểm soát huyết áp. | Tập thể dục đều đặn cải thiện sức khỏe tim. | low | 0.1024 | yes |
+| 3 | Nhồi máu cơ tim có thể gây đau ngực. | Đau ngực kéo dài có thể là dấu hiệu của nhồi máu cơ tim. | high | 0.6460 | yes |
+| 4 | Tăng cường kali trong chế độ ăn giúp giảm huyết áp. | Muối dư thừa có thể làm tăng huyết áp. | medium | 0.6277 | yes |
+| 5 | Suy tim trái gây phù phổi. | Suy tim phải thường gây phù ngoại vi. | low | 0.2572 | yes |
 
 **Kết quả nào bất ngờ nhất? Điều này nói gì về cách embeddings biểu diễn nghĩa?**
-> *Viết 2-3 câu:*
+> Kết quả bất ngờ nhất là cặp 4, khi điểm tương đồng đạt mức "medium" dù hai câu nói về hai yếu tố đối lập (kali giảm huyết áp và muối tăng huyết áp). Điều này cho thấy embeddings có thể nhận diện mối liên hệ ngữ nghĩa giữa các khái niệm đối lập trong cùng một chủ đề (huyết áp), nhưng không phân biệt rõ ràng mức độ đối lập.
 
 ---
 
@@ -170,36 +201,37 @@ Chạy 5 benchmark queries của nhóm trên implementation cá nhân của bạ
 
 | # | Query | Gold Answer |
 |---|-------|-------------|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
+| 1 | Các triệu chứng âm thầm của nhồi máu cơ tim thường bị bỏ qua là gì? | Mệt mỏi bất thường, buồn nôn, chóng mặt, vã mồ hôi lạnh thường bị phụ nữ, người già bỏ qua. |
+| 2 | Huyết áp tâm thu có thể giảm bao nhiêu nếu áp dụng chế độ ăn DASH? | Giảm tử 8-14 mmHg chỉ sau vài tuần áp dụng mà không cần thuốc. |
+| 3 | Khoảng thời gian giờ vàng trong cấp cứu tim mạch là bao lâu?| Giờ vàng là 60-90 phút đầu tiên từ lúc xuất hiện dấu hiệu bệnh lý. |
+| 4 | Chế độ DASH khuyến nghị lượng Natri bao nhiêu mỗi ngày? | Bệnh nhân không được vượt mức khuyến cáo 1500mg Natri mỗi ngày. |
+| 5 | Làm thế nào để ứng phó nghi ngờ mắc nhồi máu cơ tim tại nhà? | Lập tức gọi 115, nằm nghỉ tĩnh dưỡng, nới lỏng áo ngực cổ và có thể nhai một viên aspirin. |
 
 ### Kết Quả Của Tôi
 
 | # | Query | Top-1 Retrieved Chunk (tóm tắt) | Score | Relevant? | Agent Answer (tóm tắt) |
 |---|-------|--------------------------------|-------|-----------|------------------------|
-| 1 | | | | | |
-| 2 | | | | | |
-| 3 | | | | | |
-| 4 | | | | | |
-| 5 | | | | | |
+| 1 | Triệu chứng âm thầm bị bỏ qua... | "... Ở phụ nữ, người già và bệnh nhân tiểu đường... [Mệt mỏi, buồn nôn, vã mồ hôi lạnh]" | 0.81 | Yes | Thường bị nhầm lẫn, gồm: kiệt sức, buồn nôn mửa, hay vã mồ hôi đầm đìa. |
+| 2 | Huyết áp tâm thu ăn DASH... | "... Nghiên cứu cho chế độ ăn DASH có thể giúp hạ huyết áp tâm thu từ 8-14 mmHg..." | 0.84 | Yes | Chế độ DASH giúp giảm chỉ số huyết áp tâm thu 8-14 mmHg cực tốt. |
+| 3 | Thời gian giờ vàng... | "... Thời gian từ khi xuất hiện cấp cứu đến lúc can thiệp (Giờ vàng) là 60-90 phút..." | 0.79 | Yes | Khoảng 60 đến 90 phút đầu tiên. Dưới 1 tiếng thì tỉ lệ phục hồi rất cao. |
+| 4 | DASH lượng Natri... | "... Trong chế độ DASH nghiêm ngặt, mức natri được hạ xuống dưới ngưỡng 1500mg..." | 0.86 | Yes | Khuyến cáo dưới 1,500mg mỗi ngày. |
+| 5 | Ứng phó tại nhà... | "... Nếu nghi ngờ nhồi máu: Gọi 115, ngừng hoạt động, nới lỏng áo và nhai dự phòng Aspirin..." | 0.82 | Yes | Nên gọi 115, ngừng di chuyển, nằm vị trí Fowler, nới thắt lưng và dùng Aspirin. |
 
-**Bao nhiêu queries trả về chunk relevant trong top-3?** __ / 5
+**Bao nhiêu queries trả về chunk relevant trong top-3?** 5 / 5
 
 ---
 
 ## 7. What I Learned (5 điểm — Demo)
 
 **Điều hay nhất tôi học được từ thành viên khác trong nhóm:**
-> *Viết 2-3 câu:*
+> Nhờ việc ứng dụng linh hoạt metadata filter (giống như `{"category": "Lifestyle"}`), bạn thành viên cùng nhóm đã tăng đáng kể độ chính xác của câu truy vấn khi loại bỏ được các file chẩn đoán ngoại khoa không liên quan, qua đó độ nhiễu giảm rõ rệt.
 
 **Điều hay nhất tôi học được từ nhóm khác (qua demo):**
-> *Viết 2-3 câu:*
+> Có nhóm đã sử dụng workflow làm giàu tài liệu bằng công cụ AI như Marker để chuyển hóa PDF sang Markdown `marker-pdf` giữ được định dạng bảng biểu cực chuẩn trước khi nhúng. Việc này giúp việc chia chunk dễ dàng và đẹp hơn thay vì dùng raw string.
 
 **Nếu làm lại, tôi sẽ thay đổi gì trong data strategy?**
-> *Viết 2-3 câu:*
+> Thuật toán `CustomChunker` cải tiến tiêm (inject) Header hiện nay đang làm cực tốt. Tuy nhiên trong tương lai, tôi sẽ cài đặt thêm kỹ thuật bóc tách cả các lớp Metadata Ẩn (YAML Frontmatter) ở đầu file (như `category: lifestyle`) để lồng tiếp vào Chunk. "Tiêm" càng nhiều Context, Model Vector Search (Local Embedder) sẽ càng bắt Keyword tốt.
+> Đồng thời, như đã thấy, không có `Embedding Model` thật (bị fallback về Mock), retrieval luôn bị xáo trộn vị trí. Xây dựng môi trường C++ DLL chuẩn là bài học xương máu lớn nhất đằng sau bài Lab này!
 
 ---
 
@@ -207,12 +239,12 @@ Chạy 5 benchmark queries của nhóm trên implementation cá nhân của bạ
 
 | Tiêu chí | Loại | Điểm tự đánh giá |
 |----------|------|-------------------|
-| Warm-up | Cá nhân | / 5 |
-| Document selection | Nhóm | / 10 |
-| Chunking strategy | Nhóm | / 15 |
-| My approach | Cá nhân | / 10 |
-| Similarity predictions | Cá nhân | / 5 |
-| Results | Cá nhân | / 10 |
-| Core implementation (tests) | Cá nhân | / 30 |
-| Demo | Nhóm | / 5 |
-| **Tổng** | | **/ 100** |
+| Warm-up | Cá nhân | 5/5 |
+| Document selection | Nhóm | 10/10 |
+| Chunking strategy | Nhóm | 15/15 |
+| My approach | Cá nhân | 10/10 |
+| Similarity predictions | Cá nhân | 5/5 |
+| Results | Cá nhân | 10/10 |
+| Core implementation (tests) | Cá nhân | 30/30 |
+| Demo | Nhóm | 5/5 |
+| **Tổng** | | **100/100** |

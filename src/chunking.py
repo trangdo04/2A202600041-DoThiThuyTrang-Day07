@@ -126,6 +126,56 @@ class RecursiveChunker:
         return results
 
 
+class ParagraphChunker:
+    """
+    Custom strategy: Tách dữ liệu y tế theo các đoạn văn bản (Paragraph) 
+    dựa trên double-newline (\n\n). Điều này giúp các định nghĩa lớn không bị chặt ngang.
+    """
+    def chunk(self, text: str) -> list[str]:
+        if not text:
+            return []
+        
+        pieces = text.split('\n\n')
+        chunks = []
+        for piece in pieces:
+            cleaned = piece.strip()
+            if cleaned:
+                chunks.append(cleaned)
+                
+        return chunks
+
+class CustomChunker:
+    """
+    Cải tiến ưu tiên Headline:
+    Tách dữ liệu theo Paragraph nhưng tự động lồng ghép (prepend) 
+    Headline mục nhỏ (## hoặc ###) gần nhất vào nội dung của từng Chunk.
+    Điều này giải quyết triệt để vấn đề LLM đọc chunk mà không biết nó 
+    thuộc chủ đề nào.
+    """
+    def chunk(self, text: str) -> list[str]:
+        if not text:
+            return []
+            
+        paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+        chunks = []
+        current_header = "Thông tin chung"
+        
+        for p in paragraphs:
+            lines = p.split('\n')
+            first_line = lines[0].strip()
+            
+            # Quét xem block này có chứa Markdown Headline không
+            if first_line.startswith('##'):
+                # Lưu nhãn header
+                current_header = first_line.replace('#', '').replace('*', '').strip()
+                chunks.append(p)  # Block chứa thư Mục gốc
+            else:
+                # Gắn Context Nhãn vào đầu văn bản trơn
+                enriched_chunk = f"Trong mục [{current_header}]: {p}"
+                chunks.append(enriched_chunk)
+                
+        return chunks
+
 def _dot(a: list[float], b: list[float]) -> float:
     return sum(x * y for x, y in zip(a, b))
 
@@ -148,14 +198,16 @@ def compute_similarity(vec_a: list[float], vec_b: list[float]) -> float:
 class ChunkingStrategyComparator:
     """Run all built-in chunking strategies and compare their results."""
 
-    def compare(self, text: str, chunk_size: int = 200) -> dict:
-        fixed = FixedSizeChunker(chunk_size=chunk_size, overlap=0)
-        sentence = SentenceChunker(max_sentences_per_chunk=2)
+    def compare(self, text: str, chunk_size: int = 500) -> dict:
+        fixed = FixedSizeChunker(chunk_size=chunk_size, overlap=50)
+        sentence = SentenceChunker(max_sentences_per_chunk=3)
         recursive = RecursiveChunker(chunk_size=chunk_size)
+        custom = CustomChunker()
         
         c_fixed = fixed.chunk(text)
         c_sentence = sentence.chunk(text)
         c_recursive = recursive.chunk(text)
+        c_custom = custom.chunk(text)
         
         def _stats(chunks):
             count = len(chunks)
@@ -165,5 +217,6 @@ class ChunkingStrategyComparator:
         return {
             "fixed_size": _stats(c_fixed),
             "by_sentences": _stats(c_sentence),
-            "recursive": _stats(c_recursive)
+            "recursive": _stats(c_recursive),
+            "custom_chunker": _stats(c_custom)
         }
